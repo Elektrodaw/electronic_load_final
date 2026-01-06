@@ -1,0 +1,10 @@
+
+build
+Build
+Debug
+
+.mxproject
+.project
+.cproject
+.settings
+.cache
