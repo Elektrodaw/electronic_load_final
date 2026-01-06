@@ -57,6 +57,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define FREE4_Pin GPIO_PIN_2
+#define FREE4_GPIO_Port GPIOC
+#define INA_CS_Pin GPIO_PIN_4
+#define INA_CS_GPIO_Port GPIOC
+#define INA_ALERT_Pin GPIO_PIN_0
+#define INA_ALERT_GPIO_Port GPIOB
+#define IN_EN_Pin GPIO_PIN_12
+#define IN_EN_GPIO_Port GPIOB
+#define FREE3_Pin GPIO_PIN_13
+#define FREE3_GPIO_Port GPIOB
+#define LED_Pin GPIO_PIN_2
+#define LED_GPIO_Port GPIOD
+#define VoltageSrcControl_Pin GPIO_PIN_6
+#define VoltageSrcControl_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
