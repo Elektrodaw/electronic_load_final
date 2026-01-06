@@ -31,7 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "Nextion.h"
+#include "INA229.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -53,7 +54,66 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+extern SPI_HandleTypeDef hspi1;
+extern DAC_HandleTypeDef hdac;
 
+extern Nextion nextion;
+
+//Objects for the components form main menu
+extern NexComp ConstantCurrent;
+extern NexComp ConstantVoltage;
+extern NexComp ConstantResistance;
+extern NexComp ConstantPower;
+extern NexComp PVtest;
+extern NexComp BatteryCapacity;
+
+//Objects for the components from CC CV CR CP page
+extern NexComp LoadSW;
+extern NexComp VoltageSrc;
+extern NexComp BackToMainMenu;
+extern NexComp SetNewValue;
+extern NexComp ModeName;
+extern NexComp SetValue;
+extern NexComp SetValueUnit;
+extern NexComp Current;
+extern NexComp Voltage;
+extern NexComp Power;
+
+//Objects for the components from set new value page
+extern NexComp plus10;
+extern NexComp plus1;
+extern NexComp plus01;
+extern NexComp plus001;
+extern NexComp minus10;
+extern NexComp minus1;
+extern NexComp minus01;
+extern NexComp minus001;
+extern NexComp SaveValue;
+extern NexComp NewValueDisp;
+extern NexComp NewValueUnit;
+
+//Objects for the components from PV page
+extern NexComp PVchart;
+extern NexComp PVstartTest;
+extern NexComp PVback;
+extern NexComp MPPpower;
+extern NexComp MPPcurrent;
+extern NexComp MPPvoltage;
+
+extern uint8_t actualMode;
+extern uint8_t previousMode;
+extern uint8_t loadStatus;
+extern uint8_t voltageSrcState;
+extern float SetValueGlobal;
+extern float NewValue;
+
+extern float current_mes;
+extern float voltage_mes;
+extern float power_mes;
+
+
+
+extern INA229_Handle ina;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

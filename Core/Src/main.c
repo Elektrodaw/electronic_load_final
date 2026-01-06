@@ -22,6 +22,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include"nextion.h"
+#include "controller.h"
+#include "display.h"
+#include "safety_check.h"
+#include "INA229.h"
+#include "button_callbacks.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,12 +50,27 @@ DAC_HandleTypeDef hdac;
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim6;
 
 UART_HandleTypeDef huart4;
 DMA_HandleTypeDef hdma_uart4_tx;
 
 /* USER CODE BEGIN PV */
+// Flags
+uint8_t ControllerEN = 0;
+uint8_t DisplayEN = 0;
+uint8_t SaftyCheckEM = 0;
+
+//Global Variables
+float SetValueGlobal = 0;
+float NewValue = 0;
+uint8_t actualMode = 0;
+uint8_t previousMode = 0;
+uint8_t loadStatus = 0;
+uint8_t voltageSrcState = 0;
+float current_mes = 0;
+float voltage_mes = 0;
+float power_mes = 0;
+
 
 /* USER CODE END PV */
 
@@ -59,7 +79,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_UART4_Init(void);
-static void MX_TIM6_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_DAC_Init(void);
 static void MX_TIM2_Init(void);
@@ -69,7 +88,76 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+//Object for the Nextion display
 Nextion nextion;
+
+//Objects for the components form main menu
+NexComp ConstantCurrent;
+NexComp ConstantVoltage;
+NexComp ConstantResistance;
+NexComp ConstantPower;
+NexComp PVtest;
+NexComp BatteryCapacity;
+
+//Objects for the components from CC CV CR CP page
+NexComp LoadSW;
+NexComp VoltageSrc;
+NexComp BackToMainMenu;
+NexComp SetNewValue;
+NexComp ModeName;
+NexComp SetValue;
+NexComp SetValueUnit;
+NexComp Current;
+NexComp Voltage;
+NexComp Power;
+
+//Objects for the components from set new value page
+NexComp plus10;
+NexComp plus1;
+NexComp plus01;
+NexComp plus001;
+NexComp minus10;
+NexComp minus1;
+NexComp minus01;
+NexComp minus001;
+NexComp SaveValue;
+NexComp NewValueDisp;
+NexComp NewValueUnit;
+
+//Objects for the components from PV page
+NexComp PVchart;
+NexComp PVstartTest;
+NexComp PVback;
+NexComp MPPpower;
+NexComp MPPcurrent;
+NexComp MPPvoltage;
+
+//INA229 object
+INA229_Handle ina;
+
+//Nection UART RX interrupt
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	NextionUpdate(huart, &nextion);
+}
+
+
+//Interrupts callback
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim == &htim2) {
+	  DisplayEN = 1;
+  }
+}
+
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim == &htim2) {
+    if (HAL_TIM_GetActiveChannel(&htim2) == HAL_TIM_ACTIVE_CHANNEL_1) {
+    	ControllerEN = 1;
+    }
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -103,24 +191,111 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_UART4_Init();
-  MX_TIM6_Init();
   MX_SPI1_Init();
   MX_DAC_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_OC_Start_IT(&htim2, TIM_CHANNEL_1);
+
   NextionInit(&nextion, &huart4);
+
+  //main menu page components
+	NextionAddComp(&nextion, &ConstantCurrent, "CC", 1, 2, buttonCallbackCC, NULL);
+	NextionAddComp(&nextion, &ConstantVoltage, "CV", 1, 3, buttonCallbackCV, NULL);
+	NextionAddComp(&nextion, &ConstantResistance, "CR", 1, 4, buttonCallbackCR, NULL);
+	NextionAddComp(&nextion, &ConstantPower, "CP", 1, 1, buttonCallbackCP, NULL);
+
+
+	//CC CV CR CP page components
+	NextionAddComp(&nextion, &ModeName, "modeName", 2, 1, NULL, NULL);
+	NextionAddComp(&nextion, &SetValue, "setValue", 2, 6, NULL, NULL);
+	NextionAddComp(&nextion, &SetValueUnit, "setValueUnit", 2, 7, NULL, NULL);
+	NextionAddComp(&nextion, &Voltage, "voltage", 2, 10, NULL, NULL);
+	NextionAddComp(&nextion, &Current, "current", 2, 8, NULL, NULL);
+	NextionAddComp(&nextion, &Power, "power", 2, 12, NULL, NULL);
+	NextionAddComp(&nextion, &SetNewValue, "setNewSW", 2, 4, buttonCallbackSetNew, NULL);
+	NextionAddComp(&nextion, &LoadSW, "loadSW", 2, 14, buttonCallbackLoadSW, NULL);
+	NextionAddComp(&nextion, &VoltageSrc, "VsrcSW", 2, 15, buttonCallbackVolatageSrc, NULL);
+	NextionAddComp(&nextion, &BackToMainMenu, "back", 2, 5, buttonCallbackBack, NULL);
+
+	//Set Value page component
+	NextionAddComp(&nextion, &SaveValue, "save", 5, 9, buttonCallbackSave, NULL);
+	NextionAddComp(&nextion, &plus10, "p10", 5, 1, buttonCallbackPlus10, NULL);
+	NextionAddComp(&nextion, &plus1, "p1", 5, 2, buttonCallbackPlus1, NULL);
+	NextionAddComp(&nextion, &plus01, "p01", 5, 3, buttonCallbackPlus01, NULL);
+	NextionAddComp(&nextion, &plus001, "p001", 5, 4, buttonCallbackPlus001, NULL);
+	NextionAddComp(&nextion, &minus10, "m10", 5, 5, buttonCallbackMinus10, NULL);
+	NextionAddComp(&nextion, &minus1, "m1", 5, 6, buttonCallbackMinsu1, NULL);
+	NextionAddComp(&nextion, &minus01, "m01", 5, 7, buttonCallbackMinus01, NULL);
+	NextionAddComp(&nextion, &minus001, "m001", 5, 8, buttonCallbackMinus001, NULL);
+	NextionAddComp(&nextion, &NewValueDisp, "value", 5, 10, NULL, NULL);
+	NextionAddComp(&nextion, &NewValueUnit, "unit", 5, 11, NULL, NULL);
+
+	//PV moad page
+	NextionAddComp(&nextion, &PVchart, "PVchart", 3, 2, NULL, NULL);
+
+	  ina.hspi = &hspi1;
+	  ina.cs_port = INA_CS_GPIO_Port;
+	  ina.cs_pin = INA_CS_Pin;
+	  ina.shunt_resistance = 0.001;
+
+	  INA229_ConfigReg cfg = {
+	      .reset = 0,
+	      .resetAcc = 1,
+	      .tempComp = 0,
+	      .adcRange = 1,
+	      .convDelay_ms = 0
+	  };
+	  INA229_WriteConfig(&ina, &cfg);
+
+
+	  INA229_AdcConfigReg adc = {
+	      .mode = 0x0f,
+	      .vbusCT = 5,
+	      .vshCT  = 5,
+	      .vtCT   = 5,
+	      .avg = 2
+	  };
+	  INA229_WriteAdcConfig(&ina, &adc);
+
+
+	  //DAC init
+	  HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
+
+
+	  NextionSetPage(&nextion, 0);
+	  TransmitBuffer(&nextion);
+	  HAL_Delay(1000);
+	  NextionSetPage(&nextion, 1);
+	  TransmitBuffer(&nextion);
+	  HAL_Delay(100);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  NextionSetPage(&nextion, 0);
-	  TransmitBuffer(&nextion);
-	  HAL_Delay(1000);
-	  NextionSetPage(&nextion, 1);
-	  TransmitBuffer(&nextion);
-	  HAL_Delay(1000);
+	  if (ControllerEN == 1){
+		  controller();
+		  ControllerEN = 0;
+	  }
+	  if (DisplayEN == 1){
+		  display();
+		  DisplayEN = 0;
+	  }
+
+	  if(voltageSrcState == 1){
+		  HAL_GPIO_WritePin(VoltageSrcControl_GPIO_Port, VoltageSrcControl_Pin, GPIO_PIN_SET);
+	  }else{
+		  HAL_GPIO_WritePin(VoltageSrcControl_GPIO_Port, VoltageSrcControl_Pin, GPIO_PIN_RESET);
+	  }
+
+	  if(loadStatus == 1){
+		  HAL_GPIO_WritePin(IN_EN_GPIO_Port, IN_EN_Pin, GPIO_PIN_SET);
+	  }else{
+		  HAL_GPIO_WritePin(IN_EN_GPIO_Port, IN_EN_Pin, GPIO_PIN_RESET);
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -275,7 +450,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 6400;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 9999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -308,44 +483,6 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
-
-}
-
-/**
-  * @brief TIM6 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM6_Init(void)
-{
-
-  /* USER CODE BEGIN TIM6_Init 0 */
-
-  /* USER CODE END TIM6_Init 0 */
-
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM6_Init 1 */
-
-  /* USER CODE END TIM6_Init 1 */
-  htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 480;
-  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 9999;
-  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM6_Init 2 */
-
-  /* USER CODE END TIM6_Init 2 */
 
 }
 
