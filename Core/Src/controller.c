@@ -8,6 +8,7 @@
 #include "main.h"
 
 static uint16_t out_val = 0;
+static float resistance_mes = 0;
 
 static void CCmode()
 {
@@ -32,17 +33,64 @@ static void CCmode()
 
 static void CVmode()
 {
+	if(voltage_mes > SetValueGlobal){
+		if(out_val < 4094){
+			out_val++;
+		}
+	}else{
+		if(out_val > 1){
+			out_val--;
+		}
+	}
 
+	if(loadStatus == 0){
+		out_val = 0;
+	}
+	if(voltage_mes < 1){
+		out_val = 0;
+	}
 }
 
 static void CRmode()
 {
+	resistance_mes = voltage_mes / current_mes;
 
+	if(resistance_mes > SetValueGlobal){
+		if(out_val < 4094){
+			out_val++;
+		}
+	}else{
+		if(out_val > 1){
+			out_val--;
+		}
+	}
+
+	if(loadStatus == 0){
+		out_val = 0;
+	}
+	if(voltage_mes < 1){
+		out_val = 0;
+	}
 }
 
 static void CPmode()
 {
+	if(power_mes < SetValueGlobal){
+		if(out_val < 4094){
+			out_val++;
+		}
+	}else{
+		if(out_val > 1){
+			out_val--;
+		}
+	}
 
+	if(loadStatus == 0){
+		out_val = 0;
+	}
+	if(voltage_mes < 1){
+		out_val = 0;
+	}
 }
 
 
