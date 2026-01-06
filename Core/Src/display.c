@@ -10,6 +10,8 @@
 
 void display()
 {
+	HAL_GPIO_WritePin(FREE4_GPIO_Port, FREE4_Pin, GPIO_PIN_SET);
+
 	if(actualMode == 1){
 		NextionSetText(&nextion, &ModeName, "CC mode");
 		NextionSetText(&nextion, &SetValueUnit, "A");
@@ -75,6 +77,6 @@ void display()
 
 	TransmitBuffer(&nextion);
 
-
+	HAL_GPIO_WritePin(FREE4_GPIO_Port, FREE4_Pin, GPIO_PIN_RESET);
 }
 

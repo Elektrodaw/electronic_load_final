@@ -48,6 +48,7 @@ static void CPmode()
 
 void controller()
 {
+	HAL_GPIO_WritePin(FREE3_GPIO_Port, FREE3_Pin, GPIO_PIN_SET);
 	voltage_mes = INA229_ReadBusVoltage(&ina);
 	current_mes = INA229_ReadShuntVoltage(&ina)/ina.shunt_resistance;
 	power_mes = voltage_mes * current_mes;
@@ -99,6 +100,7 @@ void controller()
 	}
 
 	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, out_val);
+	HAL_GPIO_WritePin(FREE3_GPIO_Port, FREE3_Pin, GPIO_PIN_RESET);
 }
 
 
