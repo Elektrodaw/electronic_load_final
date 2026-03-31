@@ -57,6 +57,7 @@ void Error_Handler(void);
 extern SPI_HandleTypeDef hspi1;
 extern DAC_HandleTypeDef hdac;
 
+
 extern Nextion nextion;
 
 //Objects for the components form main menu
