@@ -69,10 +69,11 @@ void display()
 
 	if(voltageSrcState == 0){
 		NextionSetText(&nextion, &VoltageSrc, "V INT");
+		NextionSetText(&nextion, &PVVsrcSW, "V INT");
 
 	}else if(voltageSrcState == 1){
 		NextionSetText(&nextion, &VoltageSrc, "V EXT");
-
+		NextionSetText(&nextion, &PVVsrcSW, "V EXT");
 	}
 
 	TransmitBuffer(&nextion);

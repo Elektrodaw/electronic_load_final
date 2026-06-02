@@ -100,6 +100,7 @@ extern NexComp PVback;
 extern NexComp MPPpower;
 extern NexComp MPPcurrent;
 extern NexComp MPPvoltage;
+extern NexComp PVVsrcSW;
 
 extern uint8_t actualMode;
 extern uint8_t previousMode;

@@ -148,6 +148,7 @@ NexComp PVback;
 NexComp MPPpower;
 NexComp MPPcurrent;
 NexComp MPPvoltage;
+NexComp PVVsrcSW;
 
 //INA229 object
 INA229_Handle ina;
@@ -260,6 +261,7 @@ int main(void)
 	NextionAddComp(&nextion, &MPPpower, "MPPpower", 3, 4, NULL, NULL);
 	NextionAddComp(&nextion, &PVstartTest, "PVstart", 3, 3, buttonCallbackPVstart, NULL);
 	NextionAddComp(&nextion, &PVback, "PVback", 3, 1, buttonCallbackBack, NULL);
+	NextionAddComp(&nextion, &PVVsrcSW, "PVVsrcSW",	 3, 13, buttonCallbackVolatageSrc, NULL);
 
 
 	  ina.hspi = &hspi1;
