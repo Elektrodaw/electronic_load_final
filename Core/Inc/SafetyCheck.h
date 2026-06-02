@@ -10,11 +10,17 @@
 
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
+#include "math.h"
+#include "main.h"
+#include "nextion.h"
+
+#define over_temperature_trh 80
+#define over_current_trh 10
 
 extern ADC_HandleTypeDef hadc1;
 extern uint8_t loadStatus;
 
 void overheat();
-
+void overcurrent();
 
 #endif /* INC_SAFETYCHECK_H_ */

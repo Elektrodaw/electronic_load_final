@@ -56,7 +56,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 extern SPI_HandleTypeDef hspi1;
 extern DAC_HandleTypeDef hdac;
-
+extern UART_HandleTypeDef huart2;
 
 extern Nextion nextion;
 
@@ -107,12 +107,18 @@ extern uint8_t loadStatus;
 extern uint8_t voltageSrcState;
 extern float SetValueGlobal;
 extern float NewValue;
+extern uint8_t PVtestStart;
 
-extern float current_mes;
-extern float voltage_mes;
-extern float power_mes;
+extern volatile float current_mes;
+extern volatile float voltage_mes;
+extern volatile float power_mes;
 
-
+extern float PVcurrent[2048];
+extern float PVvoltage[2048];
+extern float PVpower[2048];
+extern volatile float MPP_voltage;
+extern volatile float MPP_current;
+extern volatile float MPP_power;
 
 extern INA229_Handle ina;
 /* USER CODE END EFP */

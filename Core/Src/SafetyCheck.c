@@ -6,7 +6,7 @@
  */
 
 #include "SafetyCheck.h"
-#include "math.h"
+
 
 
 uint32_t adc_value[4];
@@ -40,7 +40,27 @@ void overheat(void) {
 		temperature[i] = (1.0f / ((1.0f/T0) + (1.0f/B)*log(thermistor_resistance[i]/R0))) - 273.15;
 	}
 
-    if(temperature[0] > 80){
-    	loadStatus = 0;
-    }
+	//for(int i = 0;i < 4; i++){
+		if(temperature[0] > over_temperature_trh){
+			HAL_GPIO_WritePin(IN_EN_GPIO_Port, IN_EN_Pin, GPIO_PIN_RESET);
+			NextionSetPage(&nextion, 6);
+			NextionSendCommand(&nextion, "p0.pic=2");
+			HAL_Delay(200);
+			TransmitBuffer(&nextion);
+			while(1)
+			{}
+		}
+	//}
+}
+
+void overcurrent(){
+	if(current_mes > over_current_trh){
+		HAL_GPIO_WritePin(IN_EN_GPIO_Port, IN_EN_Pin, GPIO_PIN_RESET);
+		NextionSetPage(&nextion, 6);
+		NextionSendCommand(&nextion, "p0.pic=3");
+		HAL_Delay(200);
+		TransmitBuffer(&nextion);
+		while(1)
+		{}
+	}
 }

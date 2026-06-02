@@ -49,6 +49,11 @@ void buttonCallbackCP(){
 	actualMode = 4;
 }
 
+void buttonCallbackPV(){
+	previousMode = actualMode;
+	actualMode = 9;
+}
+
 void buttonCallbackSave(){
 	SetValueGlobal = NewValue;
 
@@ -96,4 +101,8 @@ void buttonCallbackMinus001(){
 	if(NewValue > 0){
 		NewValue = NewValue - 0.01;
 	}
+}
+
+void buttonCallbackPVstart(){
+	PVtestStart = 1;
 }

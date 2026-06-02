@@ -27,6 +27,7 @@
 #include "INA229.h"
 #include "button_callbacks.h"
 #include "SafetyCheck.h"
+#include "PC_com.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,7 +55,9 @@ SPI_HandleTypeDef hspi1;
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart4;
+UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_uart4_tx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 // Flags
@@ -62,6 +65,8 @@ uint8_t ControllerEN = 0;
 uint8_t DisplayEN = 0;
 uint8_t SaftyCheckEM = 0;
 uint8_t SafetyCheck = 0;
+uint8_t PVtestStart = 0;
+uint8_t Transmit_to_PC = 0;
 
 //Global Variables
 float SetValueGlobal = 0;
@@ -70,13 +75,17 @@ uint8_t actualMode = 0;
 uint8_t previousMode = 0;
 uint8_t loadStatus = 0;
 uint8_t voltageSrcState = 0;
-float current_mes = 0;
-float voltage_mes = 0;
-float power_mes = 0;
-
+volatile float current_mes = 0;
+volatile float voltage_mes = 0;
+volatile float power_mes = 0;
+float PVcurrent[2048] = {0};
+float PVvoltage[2048] = {0};
+float PVpower[2048] = {0};
+volatile float MPP_voltage = 0;
+volatile float MPP_current = 0;
+volatile float MPP_power = 0;
 //privat variables
 uint16_t tim_count = 0;
-
 
 /* USER CODE END PV */
 
@@ -89,6 +98,7 @@ static void MX_SPI1_Init(void);
 static void MX_DAC_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -158,6 +168,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
   if(tim_count == 10){
 	  SafetyCheck = 1;
+	  Transmit_to_PC = 1;
   }
   if(tim_count == 100){
 	  DisplayEN = 1;
@@ -203,6 +214,7 @@ int main(void)
   MX_DAC_Init();
   MX_TIM2_Init();
   MX_ADC1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);
 
@@ -214,6 +226,7 @@ int main(void)
 	NextionAddComp(&nextion, &ConstantVoltage, "CV", 1, 3, buttonCallbackCV, NULL);
 	NextionAddComp(&nextion, &ConstantResistance, "CR", 1, 4, buttonCallbackCR, NULL);
 	NextionAddComp(&nextion, &ConstantPower, "CP", 1, 1, buttonCallbackCP, NULL);
+	NextionAddComp(&nextion, &PVtest, "PVtest", 1, 7, buttonCallbackPV, NULL);
 
 
 	//CC CV CR CP page components
@@ -242,7 +255,12 @@ int main(void)
 	NextionAddComp(&nextion, &NewValueUnit, "unit", 5, 11, NULL, NULL);
 
 	//PV moad page
-	NextionAddComp(&nextion, &PVchart, "PVchart", 3, 2, NULL, NULL);
+	NextionAddComp(&nextion, &MPPvoltage, "MPPvoltage", 3, 8, NULL, NULL);
+	NextionAddComp(&nextion, &MPPcurrent, "MPPcurrent", 3, 6, NULL, NULL);
+	NextionAddComp(&nextion, &MPPpower, "MPPpower", 3, 4, NULL, NULL);
+	NextionAddComp(&nextion, &PVstartTest, "PVstart", 3, 3, buttonCallbackPVstart, NULL);
+	NextionAddComp(&nextion, &PVback, "PVback", 3, 1, buttonCallbackBack, NULL);
+
 
 	  ina.hspi = &hspi1;
 	  ina.cs_port = INA_CS_GPIO_Port;
@@ -289,13 +307,91 @@ int main(void)
 		  controller();
 		  ControllerEN = 0;
 	  }
+	  if (Transmit_to_PC == 1){
+		  if(actualMode != 9){
+			  Transmit_Continius_Data();
+		  }
+		  Transmit_to_PC = 0;
+	  }
 	  if (DisplayEN == 1){
 		  display();
 		  DisplayEN = 0;
 	  }
 	  if(SafetyCheck == 1){
-	  	overheat();
+	  	//overheat();
+	  	//current_mes = 6;
+	  	overcurrent();
 	  	SafetyCheck = 0;
+	  }
+
+
+	 //PV test mode
+
+	  if(PVtestStart == 1){
+		  NextionSetVal(&nextion, &MPPvoltage, 0000);
+		  NextionSetVal(&nextion, &MPPcurrent, 0000);
+		  NextionSetVal(&nextion, &MPPpower, 0000);
+		  NextionSendCommand(&nextion, "p1.pic=5");
+		  TransmitBuffer(&nextion);
+
+		  HAL_GPIO_WritePin(IN_EN_GPIO_Port, IN_EN_Pin, GPIO_PIN_SET);
+		  HAL_Delay(1000);
+
+		  MPP_current = 0;
+		  MPP_voltage = 0;
+		  MPP_power = 0;
+
+		  for(uint16_t i = 0 ; i < 2048 ; i++){
+
+			  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, i);
+			  voltage_mes = INA229_ReadBusVoltage(&ina);
+			  current_mes = INA229_ReadShuntVoltage(&ina)/ina.shunt_resistance;
+			  power_mes = voltage_mes * current_mes;
+
+			  if(current_mes < 0){
+			  		current_mes = 0;
+			  	}
+			  	if(current_mes > 80){
+			  		current_mes = 0;
+			  	}
+			  	if(power_mes > 5000){
+			  		power_mes = 0;
+			  	}
+
+			  //safety check
+			  overcurrent();
+			  //overheat();
+
+
+			  //save values for print characteristics
+			  PVcurrent[i] = current_mes;
+			  PVvoltage[i] = voltage_mes;
+			  PVpower[i] = power_mes;
+
+			  //look for MPP
+			  if(power_mes > MPP_power){
+				  MPP_current = current_mes;
+				  MPP_voltage = voltage_mes;
+				  MPP_power = power_mes;
+			  }
+			  HAL_Delay(1);
+
+		  }
+
+		  NextionSetVal(&nextion, &MPPvoltage, MPP_voltage*100);
+		  NextionSetVal(&nextion, &MPPcurrent, MPP_current*100);
+		  NextionSetVal(&nextion, &MPPpower, MPP_power*10);
+		  TransmitBuffer(&nextion);
+		  HAL_Delay(500);
+
+
+		  HAL_GPIO_WritePin(IN_EN_GPIO_Port, IN_EN_Pin, GPIO_PIN_RESET);
+		  NextionSendCommand(&nextion, "p1.pic=6");
+		  TransmitBuffer(&nextion);
+		  Transmit_PV_Data();
+		  HAL_Delay(500);
+
+		  PVtestStart = 0;
 	  }
 
 	  if(voltageSrcState == 1){
@@ -601,6 +697,39 @@ static void MX_UART4_Init(void)
 }
 
 /**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
   * Enable DMA controller clock
   */
 static void MX_DMA_Init(void)
@@ -613,6 +742,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Stream4_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
 }
 
