@@ -148,6 +148,24 @@ NexComp PVback;
 NexComp MPPpower;
 NexComp MPPcurrent;
 NexComp MPPvoltage;
+NexComp PVVsrcSW;
+
+//Objects for the components from BAT page
+NexComp disCur;
+NexComp cutOFF;
+NexComp SetDisCur;
+NexComp SetCutOff;
+NexComp SetCutOff;
+NexComp BATcurrent;
+NexComp BATvoltage;
+NexComp BATpower;
+NexComp capacityAh;
+NexComp capacityWh;
+NexComp StartTest;
+NexComp StopTest;
+NexComp BATVsrcSW;
+NexComp BatBack;
+
 
 //INA229 object
 INA229_Handle ina;
@@ -227,6 +245,7 @@ int main(void)
 	NextionAddComp(&nextion, &ConstantResistance, "CR", 1, 4, buttonCallbackCR, NULL);
 	NextionAddComp(&nextion, &ConstantPower, "CP", 1, 1, buttonCallbackCP, NULL);
 	NextionAddComp(&nextion, &PVtest, "PVtest", 1, 7, buttonCallbackPV, NULL);
+	NextionAddComp(&nextion, &BatteryCapacity, "BATtest", 1, 8, buttonCallbackBat, NULL);
 
 
 	//CC CV CR CP page components
@@ -254,13 +273,26 @@ int main(void)
 	NextionAddComp(&nextion, &NewValueDisp, "value", 5, 10, NULL, NULL);
 	NextionAddComp(&nextion, &NewValueUnit, "unit", 5, 11, NULL, NULL);
 
-	//PV moad page
+	//PV mode page
 	NextionAddComp(&nextion, &MPPvoltage, "MPPvoltage", 3, 8, NULL, NULL);
 	NextionAddComp(&nextion, &MPPcurrent, "MPPcurrent", 3, 6, NULL, NULL);
 	NextionAddComp(&nextion, &MPPpower, "MPPpower", 3, 4, NULL, NULL);
 	NextionAddComp(&nextion, &PVstartTest, "PVstart", 3, 3, buttonCallbackPVstart, NULL);
 	NextionAddComp(&nextion, &PVback, "PVback", 3, 1, buttonCallbackBack, NULL);
+	NextionAddComp(&nextion, &PVback, "PVVsrcSW", 3, 13, buttonCallbackVolatageSrc, NULL);
 
+	//BAT mode page
+	NextionAddComp(&nextion, &disCur, "disCur", 4, 5, NULL, NULL);
+	NextionAddComp(&nextion, &cutOFF, "cutOFF", 4, 8, NULL, NULL);
+	NextionAddComp(&nextion, &BATcurrent, "BATcurrent", 4, 14, NULL, NULL);
+	NextionAddComp(&nextion, &BATvoltage, "BATvoltage", 4, 15, NULL, NULL);
+	NextionAddComp(&nextion, &BATpower, "BATpower", 4, 16, NULL, NULL);
+	NextionAddComp(&nextion, &capacityAh, "BATcapacityAh", 4, 17, NULL, NULL);
+	NextionAddComp(&nextion, &capacityWh, "capacityWh", 4, 18, NULL, NULL);
+	NextionAddComp(&nextion, &StartTest, "StartTest", 4, 3, buttonCallbackStartTest, NULL);
+	NextionAddComp(&nextion, &StopTest, "StopTest", 4, 23, buttonCallbackStopTest, NULL);
+	NextionAddComp(&nextion, &BATVsrcSW, "BATVsrcSW", 4, 22, buttonCallbackVolatageSrc, NULL);
+	NextionAddComp(&nextion, &BatBack, "BatBack", 4, 1, buttonCallbackBack, NULL);
 
 	  ina.hspi = &hspi1;
 	  ina.cs_port = INA_CS_GPIO_Port;
@@ -308,7 +340,7 @@ int main(void)
 		  ControllerEN = 0;
 	  }
 	  if (Transmit_to_PC == 1){
-		  if(actualMode != 9){
+		  if(actualMode != 5){
 			  Transmit_Continius_Data();
 		  }
 		  Transmit_to_PC = 0;

@@ -32,4 +32,7 @@ void buttonCallbackMinus001();
 
 void buttonCallbackPVstart();
 
+void buttonCallbackStartTest();
+void buttonCallbackStopTest();
+
 #endif /* INC_BUTTON_CALLBACKS_H_ */

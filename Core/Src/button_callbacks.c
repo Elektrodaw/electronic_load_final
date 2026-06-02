@@ -51,12 +51,22 @@ void buttonCallbackCP(){
 
 void buttonCallbackPV(){
 	previousMode = actualMode;
-	actualMode = 9;
+	actualMode = 5;
+}
+
+void buttonCallbackBat(){
+	previousMode = actualMode;
+	actualMode = 6;
 }
 
 void buttonCallbackSave(){
 	SetValueGlobal = NewValue;
-
+	if(previousMode == 6){
+		NextionSetPage(&nextion, 4);
+	}else{
+		NextionSetPage(&nextion, 2);
+	}
+	TransmitBuffer(&nextion);
 	int modeMemory = 0;
 	modeMemory = actualMode;
 	actualMode = previousMode;
@@ -105,4 +115,12 @@ void buttonCallbackMinus001(){
 
 void buttonCallbackPVstart(){
 	PVtestStart = 1;
+}
+
+void buttonCallbackStartTest(){
+
+}
+
+void buttonCallbackStopTest(){
+
 }
